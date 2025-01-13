@@ -4,7 +4,8 @@
 
 🎉 **本项目实现了夸克网盘的自动签到功能**，通过 GitHub Actions 自动执行，领取每日签到奖励空间，让用户无需手动操作！  
 
-> 🛑 **警告**：本项目遵循 [MIT 协议](https://opensource.org/licenses/MIT)。任何对项目的修改和发布必须保留原作者署名。  
+> 🛑 **警告**：本项目遵循 [MIT 协议](https://opensource.org/licenses/MIT)。任何对项目的修改和发布必须保留原作者署名。
+> **本项目禁止传播，有缘人自会看到。**
 > 本仓库严厉谴责 [2pacJay/Quark_Auot_Check_In](https://github.com/2pacJay/Quark_Auot_Check_In) 仓库 **抹除原作者署名权的行为**，该行为严重违反 MIT 协议，侵害开源精神！  
 
 ---
@@ -28,7 +29,7 @@
 使用手机抓包工具（推荐 [proxypin](https://proxypin.example)）获取 Cookie 信息：  
 1. 打开手机抓包工具，访问夸克网盘签到页。  
 2. 找到接口 `https://drive-m.quark.cn/1/clouddrive/capacity/growth/info` 的请求信息。  
-3. 复制请求中的参数：`kps`、`sign` 和 `vcode`。  
+3. 复制请求中的参数：`kps`、`sign` 和 `vcode`。  【初步测试发现这个 Key 的值有效期在两个月左右】
 4. 将参数整理为以下格式：  
    ```
    user=张三; kps=abcdefg; sign=hijklmn; vcode=111111111;
