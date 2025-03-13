@@ -140,7 +140,7 @@ class Quark:
                     log += f"❌ 签到异常: {sign_return}\n"
         else:
             # log += f"❌ 签到异常: 获取成长信息失败\n"
-            raise Exception("❌ 签到异常: 获取成长信息失败")
+            raise Exception("❌ 签到异常: 获取成长信息失败")  # 适用于单账号情形，当 cookie 值失效后直接报错，方便通过 github action 的操作系统来进行提醒 如果你使用的是多账号签到的话，不要跟进此更新
 
         return log
 
