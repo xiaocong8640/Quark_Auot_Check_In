@@ -139,7 +139,8 @@ class Quark:
                 else:
                     log += f"❌ 签到异常: {sign_return}\n"
         else:
-            log += f"❌ 签到异常: 获取成长信息失败\n"
+            # log += f"❌ 签到异常: 获取成长信息失败\n"
+            raise Exception("❌ 签到异常: 获取成长信息失败")
 
         return log
 
