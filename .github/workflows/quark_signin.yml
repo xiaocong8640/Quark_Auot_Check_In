@@ -7,27 +7,13 @@ on:
   workflow_dispatch:      # 允许手动触发
 
 jobs:
-  sign-in:
+  check-if-already-signed:
     runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v3
-
-      # --- 自动任务 ---
-      - name: 随机延迟（早上）
-        if: github.event.schedule == '0 1 * * *'
-        run: |
-          delay=$((RANDOM % 1801))
-          echo "早上签到，延迟 $delay 秒后开始..."
-          sleep $delay
-
-      # --- 兜底/手动 ---
-      - name: 随机延迟（下午/手动触发）
-        if: github.event.schedule == '0 5 * * *' || github.event_name == 'workflow_dispatch'
-        run: |
-          delay=$((RANDOM % 301))
-          echo "下午兜底或手动触发，延迟 $delay 秒后开始..."
-          sleep $delay
 
       - name: 恢复签到成功记录缓存
         id: cache-success-restore
@@ -36,27 +22,46 @@ jobs:
           path: .last_success_date
           key: last-success-marker
 
-      # --- 判断是否今天已成功执行 ---
-      - name: 判断今天是否已签到成功
-        id: check_success_status
+      - name: 判断是否已签到
+        id: check
         run: |
-          # 获取当前北京时间
           current_date=$(TZ='Asia/Shanghai' date '+%Y-%m-%d')
           echo "当前北京时间: $current_date"
 
           if [ -f .last_success_date ]; then
             last_date=$(cat .last_success_date)
             echo "上次签到日期: $last_date"
-
             if [ "$last_date" = "$current_date" ]; then
               echo "今天已成功签到，跳过执行。"
+              echo "skip=false" >> "$GITHUB_OUTPUT"
               exit 0
-            else
-              echo "今天尚未签到，继续执行。"
             fi
-          else
-            echo "未找到签到记录，继续执行。"
           fi
+
+          echo "今天尚未签到，继续执行。"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+  sign-in:
+    needs: check-if-already-signed
+    if: needs.check-if-already-signed.outputs.skip == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 随机延迟（早上）
+        if: github.event.schedule == '0 1 * * *'
+        run: |
+          delay=$((RANDOM % 1801))
+          echo "早上签到，延迟 $delay 秒后开始.."
+          sleep $delay
+
+      - name: 随机延迟（下午/手动触发）
+        if: github.event.schedule == '0 5 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          delay=$((RANDOM % 301))
+          echo "下午兜底或手动触发，延迟 $delay 秒后开始.."
+          sleep $delay
 
       - name: 设置Python环境
         uses: actions/setup-python@v4
@@ -71,7 +76,6 @@ jobs:
           COOKIE_QUARK: ${{ secrets.COOKIE_QUARK }}
         run: python checkIn_Quark.py
 
-      # --- 成功后记录当前日期 ---
       - name: 标记今天签到成功
         if: success()
         run: |
@@ -86,7 +90,6 @@ jobs:
           path: .last_success_date
           key: last-success-marker
 
-      # --- 自动提交保持活跃 ---
       - name: 空提交保持活跃
         if: success() && github.event_name == 'schedule'
         run: |
@@ -94,7 +97,7 @@ jobs:
           git config --local user.name "${{ github.actor }}"
           git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}
           git pull --rebase --autostash
-          git commit --allow-empty -m "CHORE: 保持运行(自动)"
+          git commit --allow-empty -m "CHORE: 保持运行.."
           git push
 
       - name: 清理旧的工作流记录
