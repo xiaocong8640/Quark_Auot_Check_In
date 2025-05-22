@@ -52,14 +52,14 @@ jobs:
       - name: 随机延迟（早上）
         if: github.event.schedule == '0 1 * * *'
         run: |
-          delay=$((RANDOM % 1801))
+          delay=$((RANDOM % 60))
           echo "早上签到，延迟 $delay 秒后开始.."
           sleep $delay
 
       - name: 随机延迟（下午/手动触发）
         if: github.event.schedule == '0 5 * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          delay=$((RANDOM % 301))
+          delay=$((RANDOM % 30))
           echo "下午兜底或手动触发，延迟 $delay 秒后开始.."
           sleep $delay
 
