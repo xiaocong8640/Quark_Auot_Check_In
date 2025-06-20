@@ -5,15 +5,13 @@ on:
     - cron: '0 1 * * *'   # 北京时间 09:00 (UTC+8 -> UTC+1)
     - cron: '0 5 * * *'   # 北京时间 13:00 (UTC+8 -> UTC+5)
   workflow_dispatch:      # 允许手动触发
-  push:                   # 增加 push 事件
-    branches:
-      - main             # 可以根据需要修改为其他分支
 
 jobs:
   check-if-already-signed:
     runs-on: ubuntu-latest
     outputs:
       skip: ${{ steps.check.outputs.skip }}
+      already_signed: ${{ steps.check.outputs.already_signed }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v3
@@ -37,12 +35,23 @@ jobs:
             if [ "$last_date" = "$current_date" ]; then
               echo "今天已成功签到，跳过执行。"
               echo "skip=false" >> "$GITHUB_OUTPUT"
+              echo "already_signed=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
 
           echo "今天尚未签到，继续执行。"
           echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "already_signed=false" >> "$GITHUB_OUTPUT"
+
+      - name: Server 酱推送（已签到）
+        if: steps.check.outputs.already_signed == 'true'
+        env:
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        run: |
+          title="Quark签到状态"
+          content="今天（$(TZ='Asia/Shanghai' date '+%Y-%m-%d')）已成功签到，无需重复执行。"
+          curl -X POST -d "text=$title&desp=$content" https://sctapi.ftqq.com/$SERVERCHAN_KEY.send
 
   sign-in:
     needs: check-if-already-signed
@@ -111,3 +120,21 @@ jobs:
           repository: ${{ github.repository }}
           retain_days: 0
           keep_minimum_runs: 60
+
+      - name: Server 酱推送（签到成功）
+        if: success()
+        env:
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        run: |
+          title="Quark签到成功"
+          content="Quark 签到已成功，日期: $(TZ='Asia/Shanghai' date '+%Y-%m-%d')"
+          curl -X POST -d "text=$title&desp=$content" https://sctapi.ftqq.com/$SERVERCHAN_KEY.send
+
+      - name: Server 酱推送（签到失败）
+        if: failure()
+        env:
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        run: |
+          title="Quark签到失败"
+          content="Quark 签到失败，请检查。日期: $(TZ='Asia/Shanghai' date '+%Y-%m-%d')"
+          curl -X POST -d "text=$title&desp=$content" https://sctapi.ftqq.com/$SERVERCHAN_KEY.send
