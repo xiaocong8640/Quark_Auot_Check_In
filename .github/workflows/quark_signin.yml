@@ -49,7 +49,7 @@ jobs:
         env:
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
         run: |
-          title="Quark签到状态"
+          title="夸克网盘签到状态"
           content="今天（$(TZ='Asia/Shanghai' date '+%Y-%m-%d')）已成功签到，无需重复执行。"
           curl -X POST -d "text=$title&desp=$content" https://sctapi.ftqq.com/$SERVERCHAN_KEY.send
 
@@ -61,20 +61,6 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v3
 
-      - name: 随机延迟（早上）
-        if: github.event.schedule == '0 1 * * *'
-        run: |
-          delay=$((RANDOM % 60))
-          echo "早上签到，延迟 $delay 秒后开始.."
-          sleep $delay
-
-      - name: 随机延迟（下午/手动触发）
-        if: github.event.schedule == '0 5 * * *' || github.event_name == 'workflow_dispatch'
-        run: |
-          delay=$((RANDOM % 30))
-          echo "下午兜底或手动触发，延迟 $delay 秒后开始.."
-          sleep $delay
-
       - name: 设置Python环境
         uses: actions/setup-python@v4
         with:
@@ -83,10 +69,18 @@ jobs:
       - name: 安装依赖
         run: pip install requests
 
-      - name: 执行签到脚本
+      - name: 执行签到脚本并捕获结果
         env:
           COOKIE_QUARK: ${{ secrets.COOKIE_QUARK }}
-        run: python checkIn_Quark.py
+        id: sign_script
+        run: |
+          # 执行脚本并捕获所有输出（包括标准输出和错误输出）
+          SIGN_OUTPUT=$(python checkIn_Quark.py 2>&1)
+          echo "$SIGN_OUTPUT"
+          # 将输出保存到环境变量（支持多行文本）
+          echo "sign_result<<EOF" >> $GITHUB_ENV
+          echo "$SIGN_OUTPUT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: 标记今天签到成功
         if: success()
@@ -102,39 +96,20 @@ jobs:
           path: .last_success_date
           key: last-success-marker
 
-      - name: 空提交保持活跃
-        if: success() && github.event_name == 'schedule'
-        run: |
-          git config --local user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-          git config --local user.name "${{ github.actor }}"
-          git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}
-          git pull --rebase --autostash
-          git commit --allow-empty -m "CHORE: 保持运行.."
-          git push
-
-      - name: 清理旧的工作流记录
-        uses: Mattraks/delete-workflow-runs@main
-        if: always()
-        with:
-          token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          retain_days: 0
-          keep_minimum_runs: 60
-
       - name: Server 酱推送（签到成功）
         if: success()
         env:
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
         run: |
-          title="Quark签到成功"
-          content="Quark 签到已成功，日期: $(TZ='Asia/Shanghai' date '+%Y-%m-%d')"
-          curl -X POST -d "text=$title&desp=$content" https://sctapi.ftqq.com/$SERVERCHAN_KEY.send
+          title="夸克网盘签到成功"
+          # 使用捕获的完整输出作为推送内容
+          curl -X POST -d "text=$title" -d "desp=$sign_result" https://sctapi.ftqq.com/$SERVERCHAN_KEY.send
 
       - name: Server 酱推送（签到失败）
         if: failure()
         env:
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
         run: |
-          title="Quark签到失败"
-          content="Quark 签到失败，请检查。日期: $(TZ='Asia/Shanghai' date '+%Y-%m-%d')"
+          title="夸克网盘签到失败"
+          content="签到过程中发生错误，请检查脚本或Cookie是否过期。"
           curl -X POST -d "text=$title&desp=$content" https://sctapi.ftqq.com/$SERVERCHAN_KEY.send
